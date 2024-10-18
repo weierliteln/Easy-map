@@ -1,7 +1,7 @@
 ### 基于高德地图API开发的地图导航页面
 
 #### 页面效果
-<img src="./image.npg" width="210px">
+<img src="./image.png" width="210px">
 
 #### 功能介绍
 
