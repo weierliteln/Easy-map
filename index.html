@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width" />
+  <title>地图</title>
+  <style>
+    html,
+    body,
+    .box,
+    #container {
+      width: 100%;
+      height: 100%;
+    }
+
+    .amap-marker-content {
+      white-space: normal !important;
+    }
+
+    .info-box {
+      position: absolute;
+      top: 150px;
+      left: 10px;
+      width: 50%;
+      height: 300px;
+      overflow-y: auto;
+      background-color: #fff;
+      padding: 0 10px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .info-box ul {
+      list-style: none;
+      padding: 0;
+      line-height: 12px;
+    }
+
+    .box {
+      position: relative;
+      top: -100px;
+    }
+
+    .loading {
+      text-align: center;
+      height: 100px;
+      line-height: 100px;
+      font-size: 16px;
+      color: #999;
+    }
+
+    .location-data {
+      position: absolute;
+      top: 100px;
+      left: 10px;
+      padding: 10px;
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .info-window {
+      width: 200px;
+      padding: 2px 10px;
+      /* background-color: #fff; */
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .near-port {
+      line-height: 12px;
+      position: absolute;
+      top: 460px;
+      left: 10px;
+      padding: 0 10px;
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .amap-marker-content div {
+      font-size: 14px;
+      color: #3993f7;
+      white-space: nowrap;
+      line-height: 50px;
+      font-weight: 800;
+    }
+
+    .amap-marker-content img {
+      position: relative;
+      top: -56px;
+    }
+
+    button {
+      position: absolute;
+      bottom: 40px;
+      right: 10px;
+      padding: 10px;
+      background-color: #3993f7;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .button2 {
+      position: absolute;
+      bottom: 0px;
+      right: 10px;
+      padding: 10px;
+      background-color: #3993f7;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+
+</head>
+
+<body>
+  <div class="box">
+    <section class="loading">
+      <span>下拉刷新</span>
+    </section>
+    <div id="container"></div>
+    <div class="info-box">
+    </div>
+    <div class="near-port"></div>
+    <div class="location-data"></div>
+    <button onclick="" class="button1">导航到最近的停车场</button>
+    <button class="button2">退出导航</button>
+  </div>
+  <div id="panel"></div>
+</body>
+<script type="text/javascript">
+  window._AMapSecurityConfig = {
+    securityJsCode: "2e59d05a40808a5a69d24cc150a10b22",
+  };
+</script>
+<script src="https://webapi.amap.com/loader.js"></script>
+<script type="text/javascript">
+
+  // 上拉刷新
+  const box = document.querySelector('.info-box');
+  const loading = document.querySelector('.loading');
+  const bigBox = document.querySelector('.box');
+  const locationData = document.querySelector('.location-data');
+  const nearPort = document.querySelector('.near-port');
+  const button = document.querySelector('button');
+  let startY = 0;
+  let moveY = 0;
+  let distance = 0;
+  let isRefresh = false;
+  let isTouch = false;
+
+  box.addEventListener('touchstart', function (e) {
+    startY = e.touches[0].clientY;
+    isTouch = true;
+  });
+
+  box.addEventListener('touchmove', function (e) {
+    if (!isTouch) return;
+    moveY = e.touches[0].clientY;
+    distance = moveY - startY;
+    if (distance > 0) {
+      isRefresh = true;
+      loading.innerHTML = '释放刷新';
+      bigBox.style.transition = 'none';
+      bigBox.style.transform = `translateY(${distance}px)`;
+    } else {
+      isRefresh = false;
+      loading.innerHTML = '下拉刷新';
+      bigBox.style.transition = 'none';
+      bigBox.style.transform = `translateY(${distance}px)`;
+    }
+  });
+
+  box.addEventListener('touchend', function (e) {
+    if (isRefresh) {
+      bigBox.style.transition = 'transform 1s';
+      loading.innerHTML = '正在刷新';
+      location.reload();
+    } else {
+      bigBox.style.transition = 'transform 1s';
+      bigBox.style.transform = 'translateY(0)';
+    }
+    isTouch = false;
+  });
+
+  // 停车场数据
+  let car_park = [
+    {
+      name: '停车场1',
+      car_num: 100,
+      car_remain: 50,
+      phone: '12345678901',
+      lnglats: [116.968904, 39.999923],
+      distance: 0,
+      location: ''
+    },
+    {
+      name: '停车场2',
+      car_num: 200,
+      car_remain: 100,
+      phone: '12345678902',
+      lnglats: [115.282122, 39.921176],
+      distance: 0,
+      location: ''
+    },
+    {
+      name: '停车场3',
+      car_num: 300,
+      car_remain: 150,
+      phone: '12345678903',
+      lnglats: [116.372122, 39.821060],
+      distance: 0,
+      location: ''
+    },
+    {
+      name: '停车场4',
+      car_num: 400,
+      car_remain: 200,
+      phone: '12345678904',
+      lnglats: [116.968904, 39.900001],
+      distance: 0,
+      location: ''
+    },
+    {
+      name: '停车场5',
+      car_num: 500,
+      car_remain: 250,
+      phone: '12345678905',
+      lnglats: [117.418258, 39.914600],
+      distance: 0,
+      location: ''
+    },
+    {
+      name: '停车场6',
+      car_num: 600,
+      car_remain: 300,
+      phone: '12345678906',
+      lnglats: [116.418358, 39.814600],
+      distance: 0,
+      location: ''
+    }
+  ]
+
+  AMapLoader.load({
+    key: "f1f1d58442ea8630843a8bd6bbc03e36", //申请好的Web端开发者key，调用 load 时必填
+    version: "2.0"
+  })
+    .then((AMap) => {
+
+      const infoWindow = new AMap.InfoWindow({
+        isCustom: true,
+        content: `<div class="info-window"></div>`,
+        offset: new AMap.Pixel(0, -30)
+      });
+
+      const map = new AMap.Map("container", {
+        viewMode: '2D', //默认使用 2D 模式
+        zoom: 11, //地图级别
+        center: center, //地图中心点
+        zoom: 10, //地图级别
+        // layers: [layer], //设置图层,可设置成包含一个或多个图层的数组
+        mapStyle: "amap://styles/whitesmoke", //设置地图的显示样式
+        viewMode: "2D", //设置地图模式 默认2D
+        terrain: false, //开启地图立体视图
+        showBuildingBlock: false, // 不显示3D楼块
+        // showLabel: true, // 取消地图层标注
+        scrollWheel: true, // 开启缩放
+        dragEnable: true, // 开启鼠标拖动
+        showIndoorMap: false,
+        doubleClickZoom: false, // 禁止双击
+      });
+
+      // 每隔3s刷新当前位置，实时显示当前位置
+      setInterval(() => {
+        var center = map.getCenter();
+        locationData.innerHTML = `
+          当前位置:${center.lng},${center.lat}
+        `;
+      }, 5000);
+
+      // 通过经纬度信息获取具体位置
+      car_park.forEach(item => {
+        AMap.plugin('AMap.Geocoder', function () {
+          var geocoder = new AMap.Geocoder({
+            city: "010" //城市设为北京，默认：“全国”
+          });
+          geocoder.getAddress(item.lnglats, function (status, result) {
+            if (status === 'complete' && result.regeocode) {
+              item.location = result.regeocode.formattedAddress;
+              console.log('nn', item.location);
+            }
+          });
+
+          // 获取当前位置
+          geocoder.getAddress(map.getCenter(), function (status, result) {
+            if (status === 'complete' && result.regeocode) {
+              locationData.innerHTML = `
+                当前位置:${result.regeocode.formattedAddress}
+              `;
+            }
+          });
+        });
+      });
+
+      // 显示比例尺
+      AMap.plugin('AMap.ToolBar', function () {
+        var toolbar = new AMap.ToolBar();
+        map.addControl(toolbar);
+      });
+      AMap.plugin('AMap.Scale', function () {
+        var scale = new AMap.Scale(
+          {
+            position: 'LB',
+            visible: true,
+          }
+        );
+        map.addControl(scale);
+      });
+
+      var center = map.getCenter();
+      var min = car_park[0].lnglats;
+
+      var marker = new AMap.Marker({
+        position: center,
+        icon: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png',
+        offset: new AMap.Pixel(-13, -30),
+        zIndex: 101,
+        map: map,
+        content: `<div class="amap-marker-content">
+          <div>当前位置</div>
+          <img src="https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png">
+          </div>`,
+      });
+
+      var marker3
+
+      car_park.forEach(item => {
+        var distance = AMap.GeometryUtil.distance(center, item.lnglats);
+        item.distance = distance.toFixed(2) + '米';
+        box.innerHTML = `
+          <ul>
+            ${car_park.map(item => `
+              <li>
+                <h3>${item.name}</h3>
+                <p>车位总数：${item.car_num}</p>
+                <p>剩余车位：${item.car_remain}</p>
+                <p>联系电话：${item.phone}</p>
+                <p>距离：${item.distance}</p>
+              </li>
+            `).join('')}
+          </ul>
+        `;
+        for (let i = 1; i < car_park.length; i++) {
+          if (AMap.GeometryUtil.distance(center, car_park[i].lnglats) < AMap.GeometryUtil.distance(center, min)) {
+            min = car_park[i].lnglats;
+          }
+        }
+
+        nearPort.innerHTML = `
+          <h3>距离最近的停车场</h3>
+          <p>名称：${car_park.find(item => item.lnglats === min).name}</p>
+          <p>车位总数：${car_park.find(item => item.lnglats === min).car_num}</p>
+        `
+        infoWindow.open(map, map.getCenter());
+      });
+
+      // 距离最近的停车场标记
+      marker3 = new AMap.Marker({
+        position: min,
+        icon: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png',
+        offset: new AMap.Pixel(-13, -30),
+        zIndex: 101,
+        map: map,
+        content: `<div class="amap-marker-content">
+            <div style="color:red;">距离最近的停车场</div>
+            <img src="https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png">
+            </div>`,
+      });
+
+      var marker2;
+      for (let i = 0; i < car_park.length; i++) {
+        marker2 = new AMap.CircleMarker({
+          center: car_park[i].lnglats,
+          radius: 10,
+          strokeColor: '#F33',
+          strokeOpacity: 1,
+          strokeWeight: 3,
+          fillColor: '#ee2200',
+          fillOpacity: 0.35,
+          zIndex: 10,
+          cursor: 'pointer',
+          clickable: true,
+          map: map,
+        });
+
+        marker2.on('click', function (e) {
+          infoWindow.setContent(`
+            <div class="info-window">
+              <h3>${car_park[i].name}</h3>
+              <p>车位总数：${car_park[i].car_num}</p>
+              <p>剩余车位：${car_park[i].car_remain}</p>
+              <p>联系电话：${car_park[i].phone}</p>
+              <p>距离：${car_park[i].distance}</p>
+              <p>位置：${car_park[i].lnglats}${car_park[i].location}</p>
+            </div>
+          `);
+
+          infoWindow.open(map, e.lnglat);
+        });
+
+        marker2.on('mouseover', function (e) {
+          infoWindow.setContent(`
+            <div class="info-window">
+              <h3>${car_park[i].name}</h3>
+              <p>车位总数：${car_park[i].car_num}</p>
+              <p>剩余车位：${car_park[i].car_remain}</p>
+              <p>联系电话：${car_park[i].phone}</p>
+              <p>距离：${car_park[i].distance}</p>
+               <p>位置：${car_park[i].lnglats}${car_park[i].location}</p>
+            </div>
+          `);
+          infoWindow.open(map, e.lnglat);
+        });
+      }
+
+      // 设置地图自适应
+      map.setFitView();
+
+      // 添加自定义文本标记
+      for (let i = 0; i < car_park.length; i++) {
+        var text = new AMap.Text({
+          text: `
+            <div>
+              <h3>${car_park[i].name}</h3>
+            </div>
+          `,
+          textAlign: 'center',
+          verticalAlign: 'middle',
+          draggable: false,
+          cursor: 'pointer',
+          angle: 10,
+          style: {
+            'background-color': 'rgba(255,255,255,0.8)',
+            'border': '1px solid #ccc',
+            'padding': '5px',
+            'box-shadow': '0 2px 6px rgba(0,0,0,0.1)',
+            'rotate': '-10deg',
+            'font-size': '14px',
+            'line-height': '5px',
+          },
+          position: car_park[i].lnglats,
+          offset: new AMap.Pixel(0, 0),
+          zIndex: 10,
+          map: map
+        })
+
+        text.setMap(map);
+      }
+      text.setMap(map);
+
+      //创建实施交通图层
+      var traffic = new AMap.TileLayer.Traffic({
+        autoRefresh: true,
+        interval: 30,
+      });
+      map.add(traffic);
+
+      // 创建导航
+      var driving
+      button.onclick = function () {
+        AMap.plugin('AMap.Driving', function () {
+          driving = new AMap.Driving({
+            map: map,
+            panel: 'panel'
+          });
+          driving.search(center, min, function (status, result) {
+            if (status === 'complete') {
+              console.log('绘制驾车路线完成');
+            } else {
+              console.error('绘制驾车路线失败：' + result);
+            }
+          });
+        });
+      }
+      locationData.innerHTML = `
+      当前位置:${center.lng},${center.lat}
+    `;
+
+      // 退出导航
+      const exist = document.querySelector('.button2');
+      exist.onclick = function () {
+        driving.clear();
+        driving = null;
+        map.setFitView();
+      }
+
+      // 每隔3s随机生成当前位置，重新绘制地图
+      setInterval(() => {
+        var center = map.getCenter();
+        var lng = center.lng + Math.random() * 0.01;
+        var lat = center.lat + Math.random() * 0.01;
+        map.setCenter([lng, lat]);
+
+        locationData.innerHTML = `
+          当前位置:${lng},${lat}
+        `;
+
+        // 获取当前位置
+        AMap.plugin('AMap.Geocoder', function () {
+          var geocoder = new AMap.Geocoder({
+            city: "010" //城市设为北京，默认：“全国”
+          });
+          geocoder.getAddress([lng, lat], function (status, result) {
+            if (status === 'complete' && result.regeocode) {
+              locationData.innerHTML = `
+              当前位置：${result.regeocode.formattedAddress}
+            `;
+            }
+          });
+        });
+
+        // 清除前面的标记后创建新的标记
+        if (marker) {
+          map.remove(marker);
+          marker = new AMap.Marker({
+            position: center,
+            icon: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png',
+            offset: new AMap.Pixel(-13, -30),
+            zIndex: 101,
+            map: map,
+            content: `<div class="amap-marker-content">
+          <div>当前位置</div>
+          <img src="https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png">
+          </div>`,
+          });
+        }
+
+        // 重新计算距离
+        car_park.forEach(item => {
+          var distance = AMap.GeometryUtil.distance(center, item.lnglats);
+          item.distance = distance.toFixed(2) + '米';
+
+          for (let i = 1; i < car_park.length; i++) {
+            if (AMap.GeometryUtil.distance(center, car_park[i].lnglats) < AMap.GeometryUtil.distance(center, min)) {
+              min = car_park[i].lnglats;
+            }
+          }
+
+          if (marker3) {
+            map.remove(marker3);
+            marker3 = new AMap.Marker({
+              position: min,
+              icon: 'https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png',
+              offset: new AMap.Pixel(-13, -30),
+              zIndex: 101,
+              map: map,
+              content: `<div class="amap-marker-content">
+              <div style="color:red;">距离最近的停车场</div>
+              <img src="https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png">
+              </div>`,
+            });
+          }
+
+          nearPort.innerHTML = `
+            <h3>距离最近的停车场</h3>
+            <p>名称：${car_park.find(item => item.lnglats === min).name}</p>
+            <p>车位总数：${car_park.find(item => item.lnglats === min).car_num}</p>
+          `
+        });
+
+        // 重新绘制导航
+        if (driving) {
+          driving.clear();
+          driving.search(center, min, function (status, result) {
+            if (status === 'complete') {
+              console.log('绘制驾车路线完成');
+            } else {
+              console.error('绘制驾车路线失败：' + result);
+            }
+          });
+          document.querySelector('.button2').onclick = function () {
+            driving.clear();
+            driving = null;
+            map.setFitView();
+          }
+        }
+
+      }, 3000);
+    })
+
+    .catch((e) => {
+      console.error(e);
+    });
+
+  // 每隔3s刷新car_park数据
+  setInterval(() => {
+    car_park.forEach(item => {
+      item.car_remain = Math.floor(Math.random() * item.car_num);
+    });
+    box.innerHTML = `
+      <ul>
+        ${car_park.map(item => `
+          <li>
+            <h3>${item.name}</h3>
+            <p>车位总数：${item.car_num}</p>
+            <p>剩余车位：${item.car_remain}</p>
+            <p>联系电话：${item.phone}</p>
+            <p>距离：${item.distance}</p>
+          </li>
+        `).join('')}
+      </ul>
+    `;
+  }, 5000);
+
+</script>
+
+</html>
